@@ -115,34 +115,34 @@ func (sm *ShardMaster) StartCommand(op Op) (Err, Config){
 	c := sm.MakeEmptyConfig()
 	sm.mu.Lock()
 	seq, ok:= sm.cid_seq[op.Cid]
-	sm.mu.Unlock()
 	if ok&&seq>=op.Seq{
 		if op.Op == "Query"{
 			num := op.Num
 			if op.Num <0 || op.Num >=len(sm.configs){
 				num = len(sm.configs)-1
 			}
-			sm.mu.Lock()
 			sm.CopyConfig(&sm.configs[num],&c)
-			sm.mu.Unlock()
 		}
+		sm.mu.Unlock()
 		return OK, c
 	}
 	index, _, isLeader := sm.rf.Start(op)
 	if !isLeader{
+		sm.mu.Unlock()
 		return ErrWrongLeader, c
 	}
+	sm.mu.Unlock()
 	ch := sm.getAgreeCh(index)
 	select{
 	case applyedop := <-ch:
 		close(ch)
 		if applyedop.Cid == op.Cid && applyedop.Seq == op.Seq {
 			if op.Op == "Query"{
+				sm.mu.Lock()
 				num := op.Num
 				if op.Num <0 || op.Num >=len(sm.configs){
 					num = len(sm.configs)-1
 				}
-				sm.mu.Lock()
 				sm.CopyConfig(&sm.configs[num],&c)
 				sm.mu.Unlock()
 			}

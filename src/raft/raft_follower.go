@@ -1,6 +1,7 @@
 package raft
 import "time"
 import "sync"
+import "math/rand"
 
 func (rf *Raft)FollowerRun(){
 	for !rf.killed(){
@@ -16,6 +17,7 @@ func (rf *Raft)FollowerRun(){
 			continue
 		}
 		//DPrintf("{%v}:%v %v",rf.me, time.Now(), rf.timer.last_time)
+		rf.timer.election_timeout = time.Millisecond*(time.Duration(300+rand.Int31()%500))
 		if time.Now().After(rf.timer.last_time.Add(rf.timer.election_timeout)){
 			DPrintf("%v start to election",rf.me)
 			rf.state = candidate
@@ -64,8 +66,8 @@ func (rf *Raft)FollowerRun(){
 			votes := 1
 			majority := len(rf.peers)/2 + 1
 			for reply := range replyCh{
-				if reply.OldTerm != rf.currentTerm{
-					continue
+				if rf.state!=candidate || reply.OldTerm != rf.currentTerm{
+					break
 				}
 				if reply.Term > rf.currentTerm{
 					DPrintf("{%v} become follower in 413",rf.me)
@@ -84,8 +86,9 @@ func (rf *Raft)FollowerRun(){
 						rf.nextIndex[idx] = rf.lastIdx()+1
 						rf.matchIndex[idx] = 0
 					}
+					rf.leaderIdx++
 					rf.state = leader
-					go rf.LeaderRun()
+					go rf.LeaderRun(rf.leaderIdx)
 					break
 				}
 

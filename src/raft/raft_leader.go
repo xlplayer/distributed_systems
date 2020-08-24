@@ -1,14 +1,14 @@
 package raft
 import "time"
 
-func (rf *Raft)LeaderRun(){
-	go rf.Leadercommit()
+func (rf *Raft)LeaderRun(leaderIdx int){
+	go rf.Leadercommit(leaderIdx)
 	for idx,_ := range rf.peers{
 		if rf.me != idx{
-			go func(idx int){
+			go func(idx int,leaderIdx int){
 				for !rf.killed(){
 					rf.mu.Lock()
-					if(rf.state != leader){
+					if(rf.state != leader || rf.leaderIdx!=leaderIdx){
 						rf.mu.Unlock()
 						return
 					}
@@ -87,15 +87,15 @@ func (rf *Raft)LeaderRun(){
 						time.Sleep(10 * time.Millisecond)
 					}
 				}
-			}(idx)
+			}(idx,leaderIdx)
 		}
 	}
 }
 
-func (rf *Raft)Leadercommit(){
+func (rf *Raft)Leadercommit(leaderIdx int){ 
 	for!rf.killed(){
 		rf.mu.Lock()
-		if(rf.state != leader){
+		if(rf.state != leader || leaderIdx != rf.leaderIdx){
 			rf.mu.Unlock()
 			return
 		}

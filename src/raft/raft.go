@@ -90,6 +90,7 @@ type Raft struct {
 	firstIndex  int
 	applyCh		chan ApplyMsg
 
+	leaderIdx   int//control leaderrun
 	state State //leader,follower,candidate
 	timer Timer
 	applyCond *sync.Cond
@@ -324,9 +325,9 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	isLeader := true
 
 	// Your code here (2B).
-	DPrintf("{{%v} want to start command {%v}}",rf.me, command)
+	//DPrintf("{{%v} want to start command {%v}}",rf.me, command)
 	rf.mu.Lock()
-	DPrintf("{{%v} finished want to start command {%v}}",rf.me, command)
+	//DPrintf("{{%v} finished want to start command {%v}}",rf.me, command)
 	defer rf.mu.Unlock()
 	if rf.state == leader{
 		DPrintf("{leader {%v} get New command {%v}}",rf.me, command)
@@ -387,7 +388,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.log = make([]LogEntry, 1)
 	rf.state = follower
 	rf.timer.last_time = time.Now()
-	rf.timer.election_timeout = time.Millisecond*(time.Duration(300+rand.Int31()%150))
+	rf.timer.election_timeout = time.Millisecond*(time.Duration(300+rand.Int31()%500))
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
@@ -447,9 +448,9 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 }
 
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
-	DPrintf("%v receive AppendEntries from %v:%v,%v", rf.me, rf.votedFor,args,reply)
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+	DPrintf("%v receive AppendEntries from %v:%v,%v", rf.me, rf.votedFor,args,reply)
 	reply.OldTerm = args.Term
 	reply.Term = rf.currentTerm
 	reply.Success = false
